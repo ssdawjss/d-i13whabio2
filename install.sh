@@ -1,10 +1,10 @@
 #!/bin/sh
 # 口袋代理 PocketProxy 安装/升级(在 iPhone 的 iSH 里运行,重复运行就是升级)。
 # 用法: apk add curl && curl -fsSL --resolve icatdog.dynv6.net:443:47.76.241.196 https://icatdog.dynv6.net/rpa-update/pocketproxy/install.sh | sh
-# 备用(香港服务器打不开时): apk add curl && curl -fsSL https://raw.githubusercontent.com/kdwang-icatog/d-i13whabio2/main/install.sh | sh
+# 备用(香港服务器打不开时): apk add curl && curl -fsSL https://raw.githubusercontent.com/ssdawjss/d-i13whabio2/main/install.sh | sh
 # 装好后每次打开 iSH 自动在后台启动代理(默认端口 8080),iSH 里直接显示电脑要填的地址和端口。
 BASE=https://icatdog.dynv6.net/rpa-update/pocketproxy
-GH=https://raw.githubusercontent.com/kdwang-icatog/d-i13whabio2/main
+GH=https://raw.githubusercontent.com/ssdawjss/d-i13whabio2/main
 LOGF=/root/pocketproxy.log
 # 发布签名公钥(和 pocketproxy.py 里的 SIGN_PUBKEY 相同,由 keygen.sh 写入)。程序必须用对应私钥签过名才会装
 PUBKEY='MCowBQYDK2VwAyEA9O1YjAhlzFrGr0Mfn++Zs2nlNr6GsruY2qZ19oijMhE='

@@ -8,7 +8,7 @@
 2. 打开 iSH,输入下面这行,按换行键:
    apk add curl && curl -fsSL --resolve icatdog.dynv6.net:443:47.76.241.196 https://icatdog.dynv6.net/rpa-update/pocketproxy/install.sh | sh
    香港服务器打不开时可以用备用地址(要能访问 GitHub):
-   apk add curl && curl -fsSL https://raw.githubusercontent.com/kdwang-icatog/d-i13whabio2/main/install.sh | sh
+   apk add curl && curl -fsSL https://raw.githubusercontent.com/ssdawjss/d-i13whabio2/main/install.sh | sh
 3. 第一次要装 python3,常要 5-15 分钟,期间别切走。弹出定位权限时选"允许"
    (iOS 只有在用定位时才让 iSH 在后台继续运行,口袋代理不记录、不上传位置)。
 4. 最后显示"代理:运行中"和"电脑代理地址",就装好了。

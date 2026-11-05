@@ -21,11 +21,11 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = '1.0.9'
+VERSION = '1.0.10'
 NAME = '口袋代理 PocketProxy'
 UPDATE_BASE = 'https://icatdog.dynv6.net/rpa-update/pocketproxy/'
 SERVER_PIN = 'icatdog.dynv6.net:443:47.76.241.196'  # 服务器固定地址,优先用它,不依赖域名解析
-GITHUB_BASE = 'https://raw.githubusercontent.com/kdwang-icatog/d-i13whabio2/main/'  # 备用下载地址(只放发布文件)
+GITHUB_BASE = 'https://raw.githubusercontent.com/ssdawjss/d-i13whabio2/main/'  # 备用下载地址(只放发布文件)
 # 下载地址按顺序试:香港固定地址 → 香港按域名 → GitHub。同一次升级的程序和签名必须来自同一个地址
 SOURCES = [(UPDATE_BASE, ['--resolve', SERVER_PIN]), (UPDATE_BASE, []), (GITHUB_BASE, [])]
 # 发布签名公钥(ed25519,只有 base64 那一行)。新版必须用对应私钥签过名才会装,下载地址被人改了也装不上假版本。
