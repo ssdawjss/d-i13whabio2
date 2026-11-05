@@ -468,34 +468,78 @@ def fetch(name, dest=None):
     return False, err
 
 
-def ensure_openssl():
-    """校验签名要用 openssl 命令(iSH 默认没有,python3 已经带了它的库,只差约 1MB 的命令本身)。"""
-    if shutil.which('openssl'):
-        return True
-    try:
-        subprocess.run(['apk', 'add', '--no-progress', 'openssl'], capture_output=True, timeout=900)
-    except (OSError, subprocess.SubprocessError):
-        pass
-    return bool(shutil.which('openssl'))
+def ed25519_verify(pub, msg, sig):
+    """Ed25519 签名校验,纯 Python(按 RFC 8032 参考实现)。iSH 里的 openssl 太老,不支持 ed25519 原始校验,
+    1.0.9-1.0.10 因此在 iPhone 上验不过签名;1.0.11 起改用这个,不再依赖 openssl。"""
+    import hashlib
+    p = 2 ** 255 - 19
+    q = 2 ** 252 + 27742317777372353535851937790883648493
+    d = -121665 * pow(121666, p - 2, p) % p
+    sqrt_m1 = pow(2, (p - 1) // 4, p)
+
+    def recover_x(y, sign):
+        if y >= p:
+            return None
+        x2 = (y * y - 1) * pow(d * y * y + 1, p - 2, p) % p
+        if x2 == 0:
+            return None if sign else 0
+        x = pow(x2, (p + 3) // 8, p)
+        if (x * x - x2) % p:
+            x = x * sqrt_m1 % p
+        if (x * x - x2) % p:
+            return None
+        return p - x if (x & 1) != sign else x
+
+    def add(P, Q):
+        a = (P[1] - P[0]) * (Q[1] - Q[0]) % p
+        b = (P[1] + P[0]) * (Q[1] + Q[0]) % p
+        c = 2 * P[3] * Q[3] * d % p
+        e = 2 * P[2] * Q[2] % p
+        E, F, G, H = b - a, e - c, e + c, b + a
+        return E * F % p, G * H % p, F * G % p, E * H % p
+
+    def mul(s, P):
+        Q = (0, 1, 1, 0)
+        while s:
+            if s & 1:
+                Q = add(Q, P)
+            P, s = add(P, P), s >> 1
+        return Q
+
+    def point(b):
+        y = int.from_bytes(b, 'little')
+        sign, y = y >> 255, y & ((1 << 255) - 1)
+        x = recover_x(y, sign)
+        return None if x is None else (x, y, 1, x * y % p)
+
+    if len(pub) != 32 or len(sig) != 64:
+        return False
+    A, R = point(pub), point(sig[:32])
+    s = int.from_bytes(sig[32:], 'little')
+    if A is None or R is None or s >= q:
+        return False
+    gy = 4 * pow(5, p - 2, p) % p
+    gx = recover_x(gy, 0)
+    B = (gx, gy, 1, gx * gy % p)
+    h = int.from_bytes(hashlib.sha512(sig[:32] + pub + msg).digest(), 'little') % q
+    P1, P2 = mul(s, B), add(R, mul(h, A))
+    return (P1[0] * P2[2] - P2[0] * P1[2]) % p == 0 and (P1[1] * P2[2] - P2[1] * P1[2]) % p == 0
 
 
 def verify_sig(path, sig):
     """用内置公钥校验 path 的签名。返回错误文字,通过返回空。"""
     if not SIGN_PUBKEY:
         return '这个版本没有内置签名公钥,不能自动升级,请重新运行安装命令'
-    if not ensure_openssl():
-        return '缺少 openssl,无法校验新版签名,没有升级(请在 iSH 里运行 apk add openssl)'
-    pub = HERE + '.pub'
-    with open(pub, 'w') as f:
-        f.write(f'-----BEGIN PUBLIC KEY-----\n{SIGN_PUBKEY}\n-----END PUBLIC KEY-----\n')
+    import base64
     try:
-        r = subprocess.run(['openssl', 'pkeyutl', '-verify', '-pubin', '-inkey', pub, '-rawin', '-in', path,
-                            '-sigfile', sig], capture_output=True, text=True, timeout=120)
-    except (OSError, subprocess.SubprocessError) as e:
+        pub = base64.b64decode(SIGN_PUBKEY)[-32:]  # 公钥是 DER 格式,最后 32 字节是原始公钥
+        with open(path, 'rb') as f:
+            msg = f.read()
+        with open(sig, 'rb') as f:
+            sg = f.read()
+    except (OSError, ValueError) as e:
         return f'校验签名出错:{e}'
-    finally:
-        os.remove(pub)
-    return '' if r.returncode == 0 else '新版签名不对,可能被人改过,没有升级'
+    return '' if ed25519_verify(pub, msg, sg) else '新版签名不对,可能被人改过,没有升级'
 
 
 def fetch_signed(dest):
@@ -1048,7 +1092,6 @@ def main():
     threading.Thread(target=heartbeat_loop, daemon=True).start()
     threading.Thread(target=location_loop, daemon=True).start()
     threading.Thread(target=wake_loop, daemon=True).start()
-    threading.Thread(target=ensure_openssl, daemon=True).start()  # 先装好,升级时校验签名要用
     try:
         if write_profile():
             log('已更新 iSH 开机脚本', True)
