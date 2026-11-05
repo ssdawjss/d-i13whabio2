@@ -21,7 +21,7 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = '1.0.10'
+VERSION = '1.0.11'
 NAME = '口袋代理 PocketProxy'
 UPDATE_BASE = 'https://icatdog.dynv6.net/rpa-update/pocketproxy/'
 SERVER_PIN = 'icatdog.dynv6.net:443:47.76.241.196'  # 服务器固定地址,优先用它,不依赖域名解析
@@ -654,6 +654,8 @@ button.light{background:var(--bg);color:var(--btn);border:1px solid var(--line)}
 <label class="label" for="port" style="display:block;margin-top:12px">端口</label><input id="port" type="number" inputmode="numeric" min="1024" max="65535">
 <div class="err" id="err"></div></div>
 <button id="btn" onclick="toggle()">启动</button>
+<button id="rbtn" class="small light" onclick="rest()">停止并让 iSH 休息(省电)</button>
+<div class="label" id="rtip" style="margin:6px 4px 0"></div>
 <div class="card" style="margin-top:14px"><div class="stats">
 <div>当前连接<b id="active">0</b></div><div>累计连接<b id="total">0</b></div>
 <div>上传<b id="sent">0</b></div><div>下载<b id="recv">0</b></div></div></div>
@@ -668,6 +670,12 @@ button.light{background:var(--bg);color:var(--btn);border:1px solid var(--line)}
 <button class="small light" onclick="mailRep()">用邮件发送</button>
 <div class="label" id="rmsg" style="margin-top:6px"></div></div>
 <div class="label" id="donate" style="margin-top:10px;display:none">觉得好用?<a id="dlink" href="#">支持一下作者</a></div></div>
+<div class="card"><div class="label">不用手动开 iSH:主屏幕一键启动(设一次就行)</div><ol>
+<li>打开 iPhone 自带的"快捷指令" App → 右上角"+"新建。</li>
+<li>添加操作"打开 App",选 <b>iSH</b>;再添加"等待",填 3 秒;再添加"打开 URL",填 <code>http://127.0.0.1:8090</code>。</li>
+<li>把这个快捷指令命名为"启动口袋代理",点底部的分享按钮 →"添加到主屏幕"。以后点这个图标:iSH 自动打开、代理自动启动,再跳回这个页面。</li>
+<li>想全自动:快捷指令 →"自动化"→"+"→ 选"无线局域网"(连上家里 Wi-Fi 时)或"充电器"(插上电时)→ 运行"启动口袋代理",选"立即运行"。</li>
+<li>点了"停止并让 iSH 休息"后,切回 iSH 或点这个图标,代理会自动恢复。</li></ol></div>
 <div class="card"><div class="label">电脑怎么设置</div><ol>
 <li>启动顺序:iPhone 先连好 VPN → 打开 iSH(口袋代理自动启动)→ 电脑连 iPhone 的"个人热点",或和 iPhone 连同一个 Wi-Fi → 电脑设代理。</li>
 <li>电脑上可以先 <code>ping <span class="ipv">172.20.10.1</span></code> 看看通不通,或用浏览器打开 <code>http://<span class="ipv">172.20.10.1</span>:<span class="portv">8080</span>/</code> 看运行状态。</li>
@@ -690,8 +698,10 @@ function show(s){st=s;const ip=(s.ips[0]||{}).ip||'';
  document.querySelectorAll('.portv').forEach(e=>e.textContent=$('port').value);
  $('state').className='state'+(s.running?' on':'');
  $('loc').textContent='定位保活:'+(s.location||'');
- $('stateText').textContent=s.running?'运行中 · 已运行 '+Math.floor(s.uptime/60)+' 分钟':'已停止';
+ $('stateText').textContent=s.running?'运行中 · 已运行 '+Math.floor(s.uptime/60)+' 分钟':s.resting?'休息中(iSH 即将休眠,不耗电)':'已停止';
  $('btn').textContent=s.running?'停止':'启动';$('btn').className=s.running?'stop':'';
+ $('rbtn').style.display=s.resting?'none':'block';
+ $('rtip').textContent=s.resting?'切回 iSH,或点主屏幕上的"启动口袋代理",代理会自动恢复。也可以直接点上面的"启动"。':'';
  $('port').disabled=s.running;
  $('active').textContent=s.active;$('total').textContent=s.total;$('sent').textContent=fmt(s.sent);$('recv').textContent=fmt(s.recv);
  $('ver').textContent=s.version;const u=s.update;
@@ -699,11 +709,15 @@ function show(s){st=s;const ip=(s.ips[0]||{}).ip||'';
  $('ubtn').style.display=u.newer&&!u.busy?'block':'none';
  $('log').textContent=(s.log||[]).slice(-40).reverse().join('\n');
  if(s.donate){$('dlink').href=s.donate;$('donate').style.display='block'}}
-async function refresh(){try{show(await api('/api/status?tz='+new Date().getTimezoneOffset()))}catch(e){$('stateText').textContent='连不上 iSH,请先打开 iSH'}}
+async function refresh(){try{show(await api('/api/status?tz='+new Date().getTimezoneOffset()))}catch(e){
+ $('stateText').textContent=st.resting?'休息中:iSH 已休眠。切回 iSH 或点主屏幕"启动口袋代理"即可恢复':'连不上 iSH:请切到 iSH,或点主屏幕"启动口袋代理"'}}
 async function toggle(){$('btn').disabled=true;$('err').textContent='';
  try{const r=st.running?await api('/api/stop',{}):await api('/api/start',{port:+$('port').value});
   if(r.error)$('err').textContent=r.error;if(r.status)show(r.status)}catch(e){$('err').textContent='连不上 iSH,请先打开 iSH'}
  $('btn').disabled=false}
+async function rest(){$('rbtn').disabled=true;$('err').textContent='';
+ try{const r=await api('/api/rest',{});if(r.status)show(r.status)}catch(e){$('err').textContent='连不上 iSH,请先打开 iSH'}
+ $('rbtn').disabled=false}
 async function upgrade(){$('ubtn').disabled=true;$('upd').textContent='正在下载新版本……';
  try{const r=await api('/api/update',{});if(r.error){$('upd').textContent=r.error;$('ubtn').disabled=false;return}
   $('upd').textContent='升级成功,正在重启……';setTimeout(()=>location.reload(),8000)}catch(e){$('upd').textContent='连不上 iSH,请先打开 iSH';$('ubtn').disabled=false}}
@@ -720,7 +734,7 @@ refresh();setInterval(refresh,2000);
 
 
 def full_status():
-    return {**PROXY.status(), 'savedPort': CFG['port'], 'version': VERSION, 'log': list(LOG)[-40:],
+    return {**PROXY.status(), 'savedPort': CFG['port'], 'version': VERSION, 'log': list(LOG)[-40:], 'resting': REST[0],
             'location': location_text(), 'donate': DONATE_URL, 'update': {'latest': UPDATE['latest'], 'newer': newer(UPDATE['latest'], VERSION),
                        'error': UPDATE['error'], 'busy': UPDATE['busy']}}
 
@@ -770,6 +784,9 @@ class UI(BaseHTTPRequestHandler):
                 return self.reply(200, {'error': '端口要填数字', 'status': full_status()})
             if not 1024 <= port <= 65535 or port == UI_PORT:
                 return self.reply(200, {'error': f'端口要在 1024–65535 之间,且不能是 {UI_PORT}', 'status': full_status()})
+            if REST[0]:
+                REST[0] = False
+                log('在界面上点了启动,结束休息', True)
             try:
                 PROXY.start(port)
             except OSError as e:
@@ -782,6 +799,9 @@ class UI(BaseHTTPRequestHandler):
             PROXY.stop()
             CFG['running'] = False
             save_conf(CFG)
+            return self.reply(200, {'status': full_status()})
+        if self.path == '/api/rest':
+            enter_rest()
             return self.reply(200, {'status': full_status()})
         if self.path == '/api/update':
             if UPDATE['busy']:
@@ -866,32 +886,98 @@ def mem_mb():
 
 LAST_BEAT = ['']
 LOC = {'last': 0.0, 'bytes': 0, 'error': '', 'opened': 0}  # 定位保活状态
+REST = [False]  # 休息中:代理和定位都停了,iOS 会让 iSH 休眠;一恢复(切回 iSH 或快捷指令打开)就自动启动
 
 
 def location_loop():
     """自己读 /dev/location 保活:iOS 只有在 App 持续用定位时才让 iSH 在后台继续跑。
-    读不到或断了每 30 秒重开一次;状态显示在界面和 /log 里,一眼看出定位权限是否有效。"""
+    读不到或断了每 30 秒重开一次;状态显示在界面和 /log 里,一眼看出定位权限是否有效。休息时不读。"""
     while not RETIRED[0]:
         if not os.path.exists('/dev/location'):
             LOC['error'] = '不是 iSH,没有 /dev/location'
             return
+        if REST[0]:
+            time.sleep(1)
+            continue
         try:
             with open('/dev/location', 'rb', buffering=0) as f:
                 LOC['opened'] += 1
-                while not RETIRED[0]:
+                while not RETIRED[0] and not REST[0]:
                     d = f.read(4096)
                     if not d:
                         break
                     LOC['last'], LOC['bytes'], LOC['error'] = time.time(), LOC['bytes'] + len(d), ''
+            if REST[0]:
+                continue
             LOC['error'] = '定位数据流结束了'
         except OSError as e:
             LOC['error'] = f'读不了定位({e.strerror or e})'
         time.sleep(30)
 
 
+def kill_profile_location():
+    """iSH 开机脚本另起的 cat /dev/location 也在保活,休息时一起停掉。"""
+    try:
+        with open('/tmp/loc.pid') as f:
+            os.kill(int(f.read().strip()), 15)
+    except (OSError, ValueError):
+        pass
+
+
+def enter_rest():
+    """停止并休息:停代理、停定位。iOS 随后会让 iSH 休眠,不再耗电。"""
+    REST[0] = True
+    PROXY.stop()
+    kill_profile_location()
+    log('停止并休息:代理和定位都已停,iSH 将被 iOS 休眠;切回 iSH 或用快捷指令打开就会自动恢复', True)
+
+
+def leave_rest(why):
+    REST[0] = False
+    log(f'{why},自动恢复', True)
+    if not PROXY.running:
+        try:
+            PROXY.start(CFG['port'])
+        except OSError as e:
+            PROXY.last_error = str(e)
+            log(str(e), True)
+
+
+def port_alive(port):
+    try:
+        with socket.create_connection(('127.0.0.1', port), timeout=2):
+            return True
+    except OSError:
+        return False
+
+
+def wake_loop():
+    """察觉 iSH 刚从休眠中醒来(时钟一下跳了很多):休息中就自动启动;
+    在运行的话检查代理端口还在不在(iOS 挂起 App 后监听端口可能失效),不在就重开。"""
+    last = time.time()
+    while not RETIRED[0]:
+        time.sleep(2)
+        t = time.time()
+        gap, last = t - last, t
+        if gap < 15 or RETIRED[0]:
+            continue
+        log(f'iSH 被暂停了约 {int(gap)} 秒,刚恢复', True)
+        if REST[0]:
+            leave_rest('iSH 回到前台')
+        elif PROXY.running and not port_alive(PROXY.port):
+            log('代理端口在暂停后失效了,重新打开', True)
+            try:
+                PROXY.start(PROXY.port)
+            except OSError as e:
+                PROXY.last_error = str(e)
+                log(str(e), True)
+
+
 def location_text():
     if LOC['error'].startswith('不是 iSH'):
         return '不适用(不是 iSH)'
+    if REST[0]:
+        return '已暂停(休息中)'
     if LOC['last'] and time.time() - LOC['last'] < 120:
         return f'正常(最近 {int(time.time() - LOC["last"])} 秒前收到定位)'
     why = LOC['error'] or '还没收到定位数据'
@@ -961,6 +1047,7 @@ def main():
     threading.Thread(target=update_loop, daemon=True).start()
     threading.Thread(target=heartbeat_loop, daemon=True).start()
     threading.Thread(target=location_loop, daemon=True).start()
+    threading.Thread(target=wake_loop, daemon=True).start()
     threading.Thread(target=ensure_openssl, daemon=True).start()  # 先装好,升级时校验签名要用
     try:
         if write_profile():
