@@ -21,7 +21,7 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-VERSION = '1.0.11'
+VERSION = '1.0.12'
 NAME = '口袋代理 PocketProxy'
 UPDATE_BASE = 'https://icatdog.dynv6.net/rpa-update/pocketproxy/'
 SERVER_PIN = 'icatdog.dynv6.net:443:47.76.241.196'  # 服务器固定地址,优先用它,不依赖域名解析
@@ -710,7 +710,7 @@ button.light{background:var(--bg);color:var(--btn);border:1px solid var(--line)}
 <button class="small light" onclick="report()">生成问题报告</button>
 <div id="rep" style="display:none"><div class="label" style="margin-top:10px">反馈码 <b id="rcode"></b>。报告里没有你访问过的网站。先在最上面写一句发生了什么,再选一种方式发给作者:</div>
 <textarea id="rtext" rows="9"></textarea>
-<button class="small" onclick="copyRep()">复制报告(发微信或留言)</button>
+<button class="small" onclick="copyRep()">复制报告</button>
 <button class="small light" onclick="mailRep()">用邮件发送</button>
 <div class="label" id="rmsg" style="margin-top:6px"></div></div>
 <div class="label" id="donate" style="margin-top:10px;display:none">觉得好用?<a id="dlink" href="#">支持一下作者</a></div></div>
